@@ -7,7 +7,7 @@ export interface RSVP {
 }
 
 export interface LandingPageSettings {
-  title: string;
   backgroundType: 'image' | 'video';
   backgroundUrl: string;
+  title: string;
 }

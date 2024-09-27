@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import LoadingAnimation from '../components/LoadingAnimation';
 import { FaUser, FaBuilding, FaUsers } from 'react-icons/fa';
@@ -14,12 +14,23 @@ const LandingPage: React.FC = () => {
   const { addRSVP, landingPageSettings, loading } = useFirebase();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [countdown, setCountdown] = useState(5);
   const [formData, setFormData] = useState<RSVPData>({
     name: '',
     affiliation: '',
     guests: 1,
     submittedAt: '',
   });
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isSubmitted && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    } else if (isSubmitted && countdown === 0) {
+      resetForm();
+    }
+    return () => clearTimeout(timer);
+  }, [isSubmitted, countdown]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,12 +56,30 @@ const LandingPage: React.FC = () => {
       setTimeout(() => {
         setIsSubmitted(true);
         setIsTransitioning(false);
+        setCountdown(5);
       }, 300);
     } catch (error) {
       console.error('Error submitting RSVP:', error);
       alert('Failed to submit RSVP. Please try again.');
     }
   };
+
+  const resetForm = () => {
+    setIsSubmitted(false);
+    setFormData({
+      name: '',
+      affiliation: '',
+      guests: 1,
+      submittedAt: '',
+    });
+  };
+
+  const backgroundStyle = useMemo(() => {
+    if (!landingPageSettings) return { backgroundColor: '#f0f0f0' };
+    return landingPageSettings.backgroundType === 'image' && landingPageSettings.backgroundUrl
+      ? { backgroundImage: `url("${landingPageSettings.backgroundUrl}")` }
+      : { backgroundColor: '#f0f0f0' };
+  }, [landingPageSettings]);
 
   if (loading || !landingPageSettings) {
     return <LoadingAnimation />;
@@ -59,17 +88,15 @@ const LandingPage: React.FC = () => {
   return (
     <div 
       className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
-      style={{
-        backgroundImage: landingPageSettings.backgroundType === 'image' 
-          ? `url(${landingPageSettings.backgroundUrl})`
-          : 'none',
-      }}
+      style={backgroundStyle}
     >
-      {landingPageSettings.backgroundType === 'video' && (
+      {landingPageSettings.backgroundType === 'video' && landingPageSettings.backgroundUrl && (
         <video
+          key={landingPageSettings.backgroundUrl}
           autoPlay
           loop
           muted
+          playsInline
           className="absolute inset-0 w-full h-full object-cover"
         >
           <source src={landingPageSettings.backgroundUrl} type="video/mp4" />
@@ -84,6 +111,7 @@ const LandingPage: React.FC = () => {
               {isSubmitted ? (
                 <div className="text-center">
                   <h2 className="text-xl font-semibold mb-2 text-gray-800">Terima kasih sudah berhadir di acara maulid SMAN Modal Bangsa!</h2>
+                  <p className="text-gray-600">Kembali ke form dalam {countdown} detik</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit}>

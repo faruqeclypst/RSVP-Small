@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ref, push, onValue, set, off, remove } from 'firebase/database';
+import { ref, push, onValue, set, remove } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { database, storage } from '../firebase';
 import { RSVP, LandingPageSettings } from '../types';
@@ -14,9 +14,6 @@ export const useFirebase = () => {
   useEffect(() => {
     const rsvpsRef = ref(database, 'rsvps');
     const settingsRef = ref(database, 'settings/landingPage');
-   
-    let rsvpsLoaded = false;
-    let settingsLoaded = false;
 
     const handleRSVPData = (snapshot: any) => {
       const data = snapshot.val();
@@ -25,8 +22,6 @@ export const useFirebase = () => {
         rsvpList.push({ id, ...data[id] });
       }
       setRSVPs(rsvpList);
-      rsvpsLoaded = true;
-      checkLoading();
     };
 
     const handleSettingsData = (snapshot: any) => {
@@ -34,28 +29,22 @@ export const useFirebase = () => {
       if (data) {
         setLandingPageSettings(data);
       }
-      settingsLoaded = true;
-      checkLoading();
-    };
-
-    const checkLoading = () => {
-      if (rsvpsLoaded && settingsLoaded) {
-        setLoading(false);
-      }
-    };
-
-    const handleError = (error: Error) => {
-      console.error("Error fetching data:", error);
-      setError(error.message);
       setLoading(false);
     };
 
-    onValue(rsvpsRef, handleRSVPData, handleError);
-    onValue(settingsRef, handleSettingsData, handleError);
+    const rsvpUnsubscribe = onValue(rsvpsRef, handleRSVPData, (error) => {
+      console.error("Error fetching RSVPs:", error);
+      setError(error.message);
+    });
+
+    const settingsUnsubscribe = onValue(settingsRef, handleSettingsData, (error) => {
+      console.error("Error fetching settings:", error);
+      setError(error.message);
+    });
 
     return () => {
-      off(rsvpsRef);
-      off(settingsRef);
+      rsvpUnsubscribe();
+      settingsUnsubscribe();
     };
   }, []);
 
@@ -105,9 +94,19 @@ export const useFirebase = () => {
     setOperationLoading(true);
     setError(null);
     try {
-      const fileRef = storageRef(storage, `backgrounds/${file.name}`);
+      const fileRef = storageRef(storage, `backgrounds/${Date.now()}_${file.name}`);
       await uploadBytes(fileRef, file);
       const url = await getDownloadURL(fileRef);
+      
+      const backgroundType: 'image' | 'video' = file.type.startsWith('image/') ? 'image' : 'video';
+
+      const updatedSettings: LandingPageSettings = {
+        ...landingPageSettings!,
+        backgroundType,
+        backgroundUrl: url,
+      };
+      await updateLandingPage(updatedSettings);
+      
       return url;
     } catch (err) {
       setError('Failed to upload file');
@@ -115,7 +114,7 @@ export const useFirebase = () => {
     } finally {
       setOperationLoading(false);
     }
-  }, []);
+  }, [landingPageSettings, updateLandingPage]);
 
   const deleteAllRSVPs = useCallback(async () => {
     setOperationLoading(true);

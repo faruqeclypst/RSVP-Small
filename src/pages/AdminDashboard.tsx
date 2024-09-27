@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LandingPageSettings } from '../types';
 import * as XLSX from 'xlsx';
-import { FaFileExport, FaTrashAlt, FaSearch, FaImage, FaVideo, FaSave, FaTachometerAlt, FaCog, FaSignOutAlt, FaEllipsisV, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaFileExport, FaTrashAlt, FaSearch, FaImage, FaVideo, FaSave, FaTachometerAlt, FaCog, FaSignOutAlt, FaEllipsisV, FaChevronDown, FaChevronUp, FaUsers } from 'react-icons/fa';
 
 interface AlertProps {
   message: string;
@@ -81,6 +81,10 @@ const AdminDashboard: React.FC = () => {
     setIsAndroid(/Android/i.test(navigator.userAgent));
   }, [landingPageSettings]);
 
+  const totalGuests = useMemo(() => {
+    return rsvps.reduce((sum, rsvp) => sum + rsvp.guests, 0);
+  }, [rsvps]);
+
   const showAlert = (message: string, type: 'success' | 'error') => {
     setAlert({ message, type });
     setTimeout(() => setAlert(null), 5000);
@@ -155,9 +159,10 @@ const AdminDashboard: React.FC = () => {
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(rsvps.map(rsvp => ({
-      'Nama': rsvp.name,
-      'Afiliasi': rsvp.affiliation,
+    const worksheet = XLSX.utils.json_to_sheet(rsvps.map((rsvp, index) => ({
+      'No.': index + 1,
+      'Nama Lengkap': rsvp.name,
+      'Sekolah / Kantor': rsvp.affiliation,
       'Jumlah Tamu': rsvp.guests,
       'Tanggal Submit': rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'
     })));
@@ -165,10 +170,8 @@ const AdminDashboard: React.FC = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "RSVPs");
 
-    // Add a title to the Excel file
     XLSX.utils.sheet_add_aoa(worksheet, [["Daftar Tamu Maulid SMAN Modal Bangsa"]], { origin: "A1" });
 
-    // Auto-size columns
     const max_width = rsvps.reduce((w, r) => Math.max(w, r.name.length), 10);
     worksheet["!cols"] = [ { wch: max_width } ];
 
@@ -195,11 +198,18 @@ const AdminDashboard: React.FC = () => {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
+  const getPaginationRange = (current: number, total: number) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    if (current <= 3) return [1, 2, 3, 4, 5, '...', total];
+    if (current >= total - 2) return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <header className="bg-green-600 text-white py-4 px-6 shadow-md">
         <div className="container mx-auto">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl font-bold md:text-left text-center">SMAN MODAL BANGSA</h1>
         </div>
       </header>
       {alert && <Alert message={alert.message} type={alert.type} />}
@@ -207,28 +217,41 @@ const AdminDashboard: React.FC = () => {
         <div className="container mx-auto max-w-6xl">
           {activeTab === 'dashboard' && (
             <div>
-              <h1 className="text-2xl font-bold mb-4">RSVP Submissions</h1>
+              <h1 className="text-2xl font-bold mb-4 md:text-left text-center">Daftar Tamu</h1>
+   
               <div className="flex flex-col space-y-2 mb-4">
-                {!isAndroid && (
-                  <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
-                    <button
-                      className="bg-green-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-green-600 transition-colors"
-                      onClick={exportToExcel}
-                    >
-                      <FaFileExport className="mr-2" /> Export to Excel
-                    </button>
-                    <button
-                      className="bg-red-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
-                      onClick={handleDeleteAllRSVPs}
-                    >
-                      <FaTrashAlt className="mr-2" /> Delete All
-                    </button>
+                <div className="flex justify-between items-center">
+                <div className="flex space-x-4">
+                    <p className="text-gray-600">
+                      <FaUsers className="inline-block mr-2" />
+                      RSVPs: {rsvps.length}
+                    </p>
+                    <p className="text-gray-600">
+                      <FaUsers className="inline-block mr-2" />
+                      Tamu: {totalGuests}
+                    </p>
                   </div>
-                )}
+                  {!isAndroid && (
+                    <div className="flex space-x-2">
+                      <button
+                        className="bg-green-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-green-600 transition-colors"
+                        onClick={exportToExcel}
+                      >
+                        <FaFileExport className="mr-2" /> Export to Excel
+                      </button>
+                      <button
+                        className="bg-red-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
+                        onClick={handleDeleteAllRSVPs}
+                      >
+                        <FaTrashAlt className="mr-2" /> Delete All
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search by name or affiliation"
+                    placeholder="Cari Nama / Sekolah / Kantor"
                     className="w-full px-4 py-2 border rounded pl-10 focus:outline-none focus:ring-2 focus:ring-green-500"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -237,161 +260,165 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
               <div className="overflow-x-auto bg-white rounded-lg shadow">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {!isAndroid && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Affiliation</th>
-                    {!isAndroid && (
-                      <>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guests</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted At</th>
-                      </>
-                    )}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentRSVPs.map((rsvp, index) => (
-                    <React.Fragment key={rsvp.id}>
-                      <tr>
-                        {!isAndroid && <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{indexOfFirstRow + index + 1}</td>}
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rsvp.name}</td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.affiliation}</td>
-                        {!isAndroid && (
-  <>
-    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.guests}</td>
-    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-      {rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'}
-    </td>
-  </>
-)}
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                          {isAndroid ? (
-                            <button
-                              onClick={() => toggleRowExpand(rsvp.id)}
-                              className="text-green-600 hover:text-green-900 transition-colors mr-2"
-                            >
-                              {expandedRow === rsvp.id ? <FaChevronUp /> : <FaChevronDown />}
-                            </button>
-                          ) : null}
-                          <button
-                            onClick={() => handleDeleteRSVP(rsvp.id)}
-                            className="text-red-600 hover:text-red-900 transition-colors"
-                          >
-                            <FaTrashAlt />
-                          </button>
-                        </td>
-                      </tr>
-                      {isAndroid && expandedRow === rsvp.id && (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>
+                      {!isAndroid && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sekolah / Kantor</th>
+                      {!isAndroid && (
+                        <>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamu</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
+                        </>
+                      )}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentRSVPs.map((rsvp, index) => (
+                      <React.Fragment key={rsvp.id}>
                         <tr>
-                          <td colSpan={3}>
-                            <div className="px-4 py-2 bg-gray-50">
-                              <p><strong>Guests:</strong> {rsvp.guests}</p>
-                              <p><strong>Submitted At:</strong> {rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'}</p>
-                            </div>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{indexOfFirstRow + index + 1}</td>
+                          {!isAndroid && <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rsvp.name}</td>}
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.affiliation}</td>
+                          {!isAndroid && (
+                            <>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.guests}</td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'}
+                              </td>
+                            </>
+                          )}
+                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                            {isAndroid && (
+                              <button
+                                onClick={() => toggleRowExpand(rsvp.id)}
+                                className="text-green-600 hover:text-green-900 transition-colors mr-2"
+                              >
+                                {expandedRow === rsvp.id ? <FaChevronUp /> : <FaChevronDown />}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteRSVP(rsvp.id)}
+                              className="text-red-600 hover:text-red-900 transition-colors"
+                            >
+                              <FaTrashAlt />
+                            </button>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
+                        {isAndroid && expandedRow === rsvp.id && (
+                          <tr>
+                            <td colSpan={4}>
+                              <div className="px-4 py-2 bg-gray-50">
+                                <p><strong>Nama:</strong> {rsvp.name}</p>
+                                <p><strong>Tamu:</strong> {rsvp.guests}</p>
+                                <p><strong>Waktu:</strong> {rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'}</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            {filteredRSVPs.length === 0 && (
-              <p className="text-center py-4 text-gray-500">No RSVPs submitted yet.</p>
-            )}
-            <div className="mt-4 flex justify-center">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`mx-1 px-3 py-1 rounded ${
-                    currentPage === page
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  } transition-colors`}
-                >
-                  {page}
-                </button>
-              ))}
+              {filteredRSVPs.length === 0 && (
+                <p className="text-center py-4 text-gray-500">No RSVPs submitted yet.</p>
+              )}
+              <div className="mt-4 flex justify-center">
+                {getPaginationRange(currentPage, totalPages).map((page, index) => (
+                  <button
+                    key={index}
+                    onClick={() => typeof page === 'number' && handlePageChange(page)}
+                    className={`mx-1 px-3 py-1 rounded ${
+                      currentPage === page
+                        ? 'bg-green-500 text-white'
+                        : page === '...'
+                        ? 'bg-gray-200 text-gray-700 cursor-default'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    } transition-colors`}
+                    disabled={page === '...'}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-{activeTab === 'settings' && (
-          <div>
-            <h1 className="text-2xl font-bold mb-4">Landing Page Settings</h1>
-            <form onSubmit={handleUpdateLandingPage} className="bg-white shadow rounded px-8 pt-6 pb-8 mb-4">
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
-                  Title
-                </label>
-                <input
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-green-500"
-                  id="title"
-                  type="text"
-                  placeholder="Enter title"
-                  value={settings.title}
-                  onChange={(e) => setSettings({ ...settings, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Background
-                </label>
-                <div className="relative">
-                  <div className="aspect-w-16 aspect-h-9 mb-2 bg-gray-200 rounded overflow-hidden">
-                    {settings.backgroundType === 'image' ? (
-                      <img
-                        src={settings.backgroundUrl}
-                        alt="Background preview"
-                        className="object-cover w-full h-60 md:h-full"
-                      />
-                    ) : (
-                      <video
-                        src={settings.backgroundUrl}
-                        loop
-                        muted
-                        autoPlay
-                        className="object-cover w-full h-60 md:h-full"
-                      />
-                    )}
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="bg-white text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      {settings.backgroundType === 'image' ? <FaImage className="mr-2 inline" /> : <FaVideo className="mr-2 inline" />}
-                      Change {settings.backgroundType}
-                    </button>
-                  </div>
+          {activeTab === 'settings' && (
+            <div>
+              <h1 className="text-2xl font-bold mb-4 md:text-left text-center">Landing Page Settings</h1>
+              <form onSubmit={handleUpdateLandingPage} className="bg-white shadow rounded px-8 pt-6 pb-8 mb-4">
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
+                    Title
+                  </label>
+                  <input
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-green-500"
+                    id="title"
+                    type="text"
+                    placeholder="Enter title"
+                    value={settings.title}
+                    onChange={(e) => setSettings({ ...settings, title: e.target.value })}
+                    required
+                  />
                 </div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/*,video/*"
-                  className="hidden"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <button
-                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-                  type="submit"
-                >
-                  <FaSave className="mr-2" /> Update Landing Page
-                </button>
-              </div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                    Background
+                  </label>
+                  <div className="relative">
+                    <div className="aspect-w-16 aspect-h-9 mb-2 bg-gray-200 rounded overflow-hidden">
+                      {settings.backgroundType === 'image' ? (
+                        <img
+                          src={settings.backgroundUrl}
+                          alt="Background preview"
+                          className="object-cover w-full h-60 md:h-full"
+                        />
+                      ) : (
+                        <video
+                          src={settings.backgroundUrl}
+                          loop
+                          muted
+                          autoPlay
+                          className="object-cover w-full h-60 md:h-full"
+                        />
+                      )}
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-white text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        {settings.backgroundType === 'image' ? <FaImage className="mr-2 inline" /> : <FaVideo className="mr-2 inline" />}
+                        Change {settings.backgroundType}
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/*,video/*"
+                    className="hidden"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <button
+                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
+                    type="submit"
+                  >
+                    <FaSave className="mr-2" /> Update Landing Page
+                  </button>
+                </div>
               </form>
-          </div>
-        )}
-      </div>
-    </main>
+            </div>
+          )}
+        </div>
+      </main>
       {isAndroid && activeTab === 'dashboard' && (
         <div className="fixed bottom-20 right-4 flex flex-col-reverse items-end space-y-2 space-y-reverse">
           <button
@@ -422,34 +449,34 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
-  <nav className="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0">
+      <nav className="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0">
         <div className="container mx-auto">
           <div className="flex justify-around">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center justify-center flex-1 py-2 ${
-              activeTab === 'dashboard' ? 'text-green-500' : 'text-gray-500'
-            } hover:text-green-500 transition-colors`}
-          >
-            <FaTachometerAlt className="text-xl mb-1" />
-            <span className="text-xs">Dashboard</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center justify-center flex-1 py-2 ${
-              activeTab === 'settings' ? 'text-green-500' : 'text-gray-500'
-            } hover:text-green-500 transition-colors`}
-          >
-            <FaCog className="text-xl mb-1" />
-            <span className="text-xs">Settings</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="flex flex-col items-center justify-center flex-1 py-2 text-gray-500 hover:text-green-500 transition-colors"
-          >
-            <FaSignOutAlt className="text-xl mb-1" />
-            <span className="text-xs">Logout</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex flex-col items-center justify-center flex-1 py-2 ${
+                activeTab === 'dashboard' ? 'text-green-500' : 'text-gray-500'
+              } hover:text-green-500 transition-colors`}
+            >
+              <FaTachometerAlt className="text-xl mb-1" />
+              <span className="text-xs">Dashboard</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex flex-col items-center justify-center flex-1 py-2 ${
+                activeTab === 'settings' ? 'text-green-500' : 'text-gray-500'
+              } hover:text-green-500 transition-colors`}
+            >
+              <FaCog className="text-xl mb-1" />
+              <span className="text-xs">Settings</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex flex-col items-center justify-center flex-1 py-2 text-gray-500 hover:text-green-500 transition-colors"
+            >
+              <FaSignOutAlt className="text-xl mb-1" />
+              <span className="text-xs">Logout</span>
+            </button>
           </div>
         </div>
       </nav>
