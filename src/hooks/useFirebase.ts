@@ -6,15 +6,17 @@ import { RSVP, LandingPageSettings } from '../types';
 
 export const useFirebase = () => {
   const [rsvps, setRSVPs] = useState<RSVP[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [operationLoading, setOperationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [landingPageSettings, setLandingPageSettings] = useState<LandingPageSettings | null>(null);
 
   useEffect(() => {
     const rsvpsRef = ref(database, 'rsvps');
     const settingsRef = ref(database, 'settings/landingPage');
-    
-    setLoading(true);
+   
+    let rsvpsLoaded = false;
+    let settingsLoaded = false;
 
     const handleRSVPData = (snapshot: any) => {
       const data = snapshot.val();
@@ -23,6 +25,8 @@ export const useFirebase = () => {
         rsvpList.push({ id, ...data[id] });
       }
       setRSVPs(rsvpList);
+      rsvpsLoaded = true;
+      checkLoading();
     };
 
     const handleSettingsData = (snapshot: any) => {
@@ -30,12 +34,24 @@ export const useFirebase = () => {
       if (data) {
         setLandingPageSettings(data);
       }
+      settingsLoaded = true;
+      checkLoading();
     };
 
-    onValue(rsvpsRef, handleRSVPData);
-    onValue(settingsRef, handleSettingsData);
+    const checkLoading = () => {
+      if (rsvpsLoaded && settingsLoaded) {
+        setLoading(false);
+      }
+    };
 
-    setLoading(false);
+    const handleError = (error: Error) => {
+      console.error("Error fetching data:", error);
+      setError(error.message);
+      setLoading(false);
+    };
+
+    onValue(rsvpsRef, handleRSVPData, handleError);
+    onValue(settingsRef, handleSettingsData, handleError);
 
     return () => {
       off(rsvpsRef);
@@ -44,7 +60,7 @@ export const useFirebase = () => {
   }, []);
 
   const addRSVP = useCallback(async (data: Omit<RSVP, 'id'>) => {
-    setLoading(true);
+    setOperationLoading(true);
     setError(null);
     try {
       const rsvpsRef = ref(database, 'rsvps');
@@ -53,12 +69,12 @@ export const useFirebase = () => {
       setError('Failed to add RSVP');
       throw err;
     } finally {
-      setLoading(false);
+      setOperationLoading(false);
     }
   }, []);
 
   const deleteRSVP = useCallback(async (id: string) => {
-    setLoading(true);
+    setOperationLoading(true);
     setError(null);
     try {
       const rsvpRef = ref(database, `rsvps/${id}`);
@@ -67,12 +83,12 @@ export const useFirebase = () => {
       setError('Failed to delete RSVP');
       throw err;
     } finally {
-      setLoading(false);
+      setOperationLoading(false);
     }
   }, []);
 
   const updateLandingPage = useCallback(async (data: LandingPageSettings) => {
-    setLoading(true);
+    setOperationLoading(true);
     setError(null);
     try {
       const settingsRef = ref(database, 'settings/landingPage');
@@ -81,12 +97,12 @@ export const useFirebase = () => {
       setError('Failed to update landing page');
       throw err;
     } finally {
-      setLoading(false);
+      setOperationLoading(false);
     }
   }, []);
 
   const uploadFile = useCallback(async (file: File) => {
-    setLoading(true);
+    setOperationLoading(true);
     setError(null);
     try {
       const fileRef = storageRef(storage, `backgrounds/${file.name}`);
@@ -97,12 +113,12 @@ export const useFirebase = () => {
       setError('Failed to upload file');
       throw err;
     } finally {
-      setLoading(false);
+      setOperationLoading(false);
     }
   }, []);
 
   const deleteAllRSVPs = useCallback(async () => {
-    setLoading(true);
+    setOperationLoading(true);
     setError(null);
     try {
       const rsvpsRef = ref(database, 'rsvps');
@@ -111,7 +127,7 @@ export const useFirebase = () => {
       setError('Failed to delete all RSVPs');
       throw err;
     } finally {
-      setLoading(false);
+      setOperationLoading(false);
     }
   }, []);
 
@@ -124,6 +140,7 @@ export const useFirebase = () => {
     landingPageSettings,
     uploadFile,
     loading,
+    operationLoading,
     error
   };
 };

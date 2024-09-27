@@ -3,13 +3,8 @@ import { useFirebase } from '../hooks/useFirebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LandingPageSettings } from '../types';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { FaFileExport, FaTrashAlt, FaSearch, FaImage, FaVideo, FaSave, FaTachometerAlt, FaCog, FaSignOutAlt, FaEllipsisV } from 'react-icons/fa';
-
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
-}
+import * as XLSX from 'xlsx';
+import { FaFileExport, FaTrashAlt, FaSearch, FaImage, FaVideo, FaSave, FaTachometerAlt, FaCog, FaSignOutAlt, FaEllipsisV, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
 interface AlertProps {
   message: string;
@@ -67,6 +62,7 @@ const AdminDashboard: React.FC = () => {
   const [deleteAction, setDeleteAction] = useState<() => Promise<void>>(() => Promise.resolve());
   const [isAndroid, setIsAndroid] = useState(false);
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const [settings, setSettings] = useState<LandingPageSettings>({
     title: '',
@@ -158,13 +154,25 @@ const AdminDashboard: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF() as jsPDFWithAutoTable;
-    doc.autoTable({
-      head: [['No.', 'Name', 'Affiliation', 'Guests']],
-      body: rsvps.map((rsvp, index) => [index + 1, rsvp.name, rsvp.affiliation, rsvp.guests]),
-    });
-    doc.save('rsvp_list.pdf');
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(rsvps.map(rsvp => ({
+      'Nama': rsvp.name,
+      'Afiliasi': rsvp.affiliation,
+      'Jumlah Tamu': rsvp.guests,
+      'Tanggal Submit': rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'
+    })));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "RSVPs");
+
+    // Add a title to the Excel file
+    XLSX.utils.sheet_add_aoa(worksheet, [["Daftar Tamu Maulid SMAN Modal Bangsa"]], { origin: "A1" });
+
+    // Auto-size columns
+    const max_width = rsvps.reduce((w, r) => Math.max(w, r.name.length), 10);
+    worksheet["!cols"] = [ { wch: max_width } ];
+
+    XLSX.writeFile(workbook, "Daftar_Tamu_Maulid_SMAN_Modal_Bangsa.xlsx");
   };
 
   const filteredRSVPs = rsvps.filter(
@@ -183,75 +191,114 @@ const AdminDashboard: React.FC = () => {
     setCurrentPage(pageNumber);
   };
 
+  const toggleRowExpand = (id: string) => {
+    setExpandedRow(expandedRow === id ? null : id);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <header className="bg-green-600 text-white py-4 px-6 shadow-md">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="container mx-auto">
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+        </div>
       </header>
       {alert && <Alert message={alert.message} type={alert.type} />}
       <main className="flex-1 p-4 overflow-y-auto pb-20">
-        {activeTab === 'dashboard' && (
-          <div>
-            <h1 className="text-2xl font-bold mb-4">RSVP Submissions</h1>
-            <div className="flex flex-col space-y-2 mb-4">
-              {!isAndroid && (
-                <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
-                  <button
-                    className="bg-green-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-green-600 transition-colors"
-                    onClick={exportToPDF}
-                  >
-                    <FaFileExport className="mr-2" /> Export to PDF
-                  </button>
-                  <button
-                    className="bg-red-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
-                    onClick={handleDeleteAllRSVPs}
-                  >
-                    <FaTrashAlt className="mr-2" /> Delete All
-                  </button>
+        <div className="container mx-auto max-w-6xl">
+          {activeTab === 'dashboard' && (
+            <div>
+              <h1 className="text-2xl font-bold mb-4">RSVP Submissions</h1>
+              <div className="flex flex-col space-y-2 mb-4">
+                {!isAndroid && (
+                  <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
+                    <button
+                      className="bg-green-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-green-600 transition-colors"
+                      onClick={exportToExcel}
+                    >
+                      <FaFileExport className="mr-2" /> Export to Excel
+                    </button>
+                    <button
+                      className="bg-red-500 text-white py-2 px-4 rounded flex items-center justify-center hover:bg-red-600 transition-colors"
+                      onClick={handleDeleteAllRSVPs}
+                    >
+                      <FaTrashAlt className="mr-2" /> Delete All
+                    </button>
+                  </div>
+                )}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by name or affiliation"
+                    className="w-full px-4 py-2 border rounded pl-10 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <FaSearch className="absolute left-3 top-3 text-gray-400" />
                 </div>
-              )}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search by name or affiliation"
-                  className="w-full px-4 py-2 border rounded pl-10 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
               </div>
-            </div>
-            <div className="overflow-x-auto bg-white rounded-lg shadow">
+              <div className="overflow-x-auto bg-white rounded-lg shadow">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>
+                    {!isAndroid && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Affiliation</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guests</th>
+                    {!isAndroid && (
+                      <>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guests</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted At</th>
+                      </>
+                    )}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentRSVPs.map((rsvp, index) => (
-                    <tr key={rsvp.id}>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{indexOfFirstRow + index + 1}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rsvp.name}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.affiliation}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.guests}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleDeleteRSVP(rsvp.id)}
-                          className="text-red-600 hover:text-red-900 transition-colors"
-                        >
-                          <FaTrashAlt />
-                        </button>
-                      </td>
-                    </tr>
+                    <React.Fragment key={rsvp.id}>
+                      <tr>
+                        {!isAndroid && <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{indexOfFirstRow + index + 1}</td>}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rsvp.name}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.affiliation}</td>
+                        {!isAndroid && (
+  <>
+    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{rsvp.guests}</td>
+    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+      {rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'}
+    </td>
+  </>
+)}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                          {isAndroid ? (
+                            <button
+                              onClick={() => toggleRowExpand(rsvp.id)}
+                              className="text-green-600 hover:text-green-900 transition-colors mr-2"
+                            >
+                              {expandedRow === rsvp.id ? <FaChevronUp /> : <FaChevronDown />}
+                            </button>
+                          ) : null}
+                          <button
+                            onClick={() => handleDeleteRSVP(rsvp.id)}
+                            className="text-red-600 hover:text-red-900 transition-colors"
+                          >
+                            <FaTrashAlt />
+                          </button>
+                        </td>
+                      </tr>
+                      {isAndroid && expandedRow === rsvp.id && (
+                        <tr>
+                          <td colSpan={3}>
+                            <div className="px-4 py-2 bg-gray-50">
+                              <p><strong>Guests:</strong> {rsvp.guests}</p>
+                              <p><strong>Submitted At:</strong> {rsvp.submittedAt ? new Date(rsvp.submittedAt).toLocaleString() : 'N/A'}</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
             {filteredRSVPs.length === 0 && (
               <p className="text-center py-4 text-gray-500">No RSVPs submitted yet.</p>
             )}
@@ -273,7 +320,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'settings' && (
+{activeTab === 'settings' && (
           <div>
             <h1 className="text-2xl font-bold mb-4">Landing Page Settings</h1>
             <form onSubmit={handleUpdateLandingPage} className="bg-white shadow rounded px-8 pt-6 pb-8 mb-4">
@@ -340,10 +387,11 @@ const AdminDashboard: React.FC = () => {
                   <FaSave className="mr-2" /> Update Landing Page
                 </button>
               </div>
-            </form>
+              </form>
           </div>
         )}
-      </main>
+      </div>
+    </main>
       {isAndroid && activeTab === 'dashboard' && (
         <div className="fixed bottom-20 right-4 flex flex-col-reverse items-end space-y-2 space-y-reverse">
           <button
@@ -367,15 +415,16 @@ const AdminDashboard: React.FC = () => {
             </button>
             <button
               className="bg-green-500 text-white p-3 rounded-full shadow-lg hover:bg-green-600 transition-all duration-300 ease-in-out transform hover:scale-110"
-              onClick={exportToPDF}
+              onClick={exportToExcel}
             >
               <FaFileExport />
             </button>
           </div>
         </div>
       )}
-      <nav className="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0">
-        <div className="flex justify-around">
+  <nav className="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0">
+        <div className="container mx-auto">
+          <div className="flex justify-around">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex flex-col items-center justify-center flex-1 py-2 ${
@@ -401,6 +450,7 @@ const AdminDashboard: React.FC = () => {
             <FaSignOutAlt className="text-xl mb-1" />
             <span className="text-xs">Logout</span>
           </button>
+          </div>
         </div>
       </nav>
       <Modal

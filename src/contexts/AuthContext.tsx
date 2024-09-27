@@ -7,6 +7,7 @@ import {
   UserCredential
 } from 'firebase/auth';
 import { auth } from '../firebase';
+import LoadingAnimation from '../components/LoadingAnimation';  // Import LoadingAnimation
 
 interface AuthContextType {
   currentUser: User | null;
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? <LoadingAnimation /> : children}
     </AuthContext.Provider>
   );
 };

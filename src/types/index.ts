@@ -3,6 +3,7 @@ export interface RSVP {
   name: string;
   affiliation: string;
   guests: number;
+  submittedAt?: string | Date; // Make it optional and accept either string or Date
 }
 
 export interface LandingPageSettings {

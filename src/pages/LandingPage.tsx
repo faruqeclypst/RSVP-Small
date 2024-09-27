@@ -7,6 +7,7 @@ interface RSVPData {
   name: string;
   affiliation: string;
   guests: number;
+  submittedAt: string;
 }
 
 const LandingPage: React.FC = () => {
@@ -17,6 +18,7 @@ const LandingPage: React.FC = () => {
     name: '',
     affiliation: '',
     guests: 1,
+    submittedAt: '',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,7 +32,15 @@ const LandingPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addRSVP(formData);
+      const now = new Date();
+      const submissionData = { 
+        ...formData, 
+        name: formData.name.replace(/\b\w/g, c => c.toUpperCase()),
+        affiliation: formData.affiliation.replace(/\b\w/g, c => c.toUpperCase()),
+        submittedAt: now.toISOString(),
+        submittedAtLocale: now.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+      };
+      await addRSVP(submissionData);
       setIsTransitioning(true);
       setTimeout(() => {
         setIsSubmitted(true);
@@ -69,7 +79,7 @@ const LandingPage: React.FC = () => {
       <div className="relative z-10 w-full max-w-md px-4">
         <div className="bg-white bg-opacity-90 shadow-md rounded-lg overflow-hidden">
           <div className="px-8 pt-6 pb-8">
-            <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">{landingPageSettings.title}</h1>
+            <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">{landingPageSettings.title}</h1>
             <div className={`transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
               {isSubmitted ? (
                 <div className="text-center">
@@ -83,11 +93,10 @@ const LandingPage: React.FC = () => {
                       Nama Lengkap
                     </label>
                     <input
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline capitalize"
                       id="name"
                       name="name"
                       type="text"
-                      placeholder="Masukkan nama lengkap"
                       value={formData.name}
                       onChange={handleInputChange}
                       required
@@ -99,11 +108,10 @@ const LandingPage: React.FC = () => {
                       Sekolah/Kantor/Instansi
                     </label>
                     <input
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline capitalize"
                       id="affiliation"
                       name="affiliation"
                       type="text"
-                      placeholder="Masukkan afiliasi"
                       value={formData.affiliation}
                       onChange={handleInputChange}
                       required
@@ -128,7 +136,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-center">
                     <button
-                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200"
+                      className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200"
                       type="submit"
                     >
                       Submit RSVP
