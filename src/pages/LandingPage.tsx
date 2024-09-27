@@ -1,62 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { Parallax } from 'react-parallax';
+import React, { useState } from 'react';
 import RSVPForm from '../components/RSVPForm';
 import LoadingAnimation from '../components/LoadingAnimation';
 import { useFirebase } from '../hooks/useFirebase';
-import { LandingPageSettings } from '../types';
+import '../styles/LandingPage.css';
 
 const LandingPage: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<LandingPageSettings>({
-    title: 'Welcome to Our Event!',
-    backgroundImage: '/path/to/default-background.jpg',
-  });
-  const { addRSVP, getLandingPageSettings } = useFirebase();
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const fetchedSettings = await getLandingPageSettings();
-        if (fetchedSettings) {
-          setSettings(fetchedSettings);
-        }
-      } catch (error) {
-        console.error('Error fetching landing page settings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSettings();
-  }, [getLandingPageSettings]);
+  const { addRSVP, landingPageSettings, loading } = useFirebase();
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const handleRSVPSubmit = async (data: { name: string; affiliation: string; guests: number }) => {
     try {
       await addRSVP(data);
-      alert('RSVP submitted successfully!');
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setIsSubmitted(true);
+        setIsTransitioning(false);
+      }, 300); // This should match the transition duration in CSS
     } catch (error) {
       console.error('Error submitting RSVP:', error);
       alert('Failed to submit RSVP. Please try again.');
     }
   };
 
-  if (loading) {
+  if (loading || !landingPageSettings) {
     return <LoadingAnimation />;
   }
 
   return (
-    <Parallax
-      bgImage={settings.backgroundImage}
-      strength={500}
-      bgImageStyle={{objectFit: 'cover', width: '100%', height: '100%'}}
+    <div 
+      className="landing-page"
+      style={{
+        backgroundImage: landingPageSettings.backgroundType === 'image' 
+          ? `url(${landingPageSettings.backgroundUrl})`
+          : 'none',
+      }}
     >
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white bg-opacity-80 p-8 rounded-lg shadow-lg">
-          <h1 className="text-4xl font-bold text-center mb-6">{settings.title}</h1>
-          <RSVPForm onSubmit={handleRSVPSubmit} />
+      {landingPageSettings.backgroundType === 'video' && (
+        <video
+          autoPlay
+          loop
+          muted
+          className="background-video"
+        >
+          <source src={landingPageSettings.backgroundUrl} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      )}
+      <div className="content-wrapper">
+        <div className="form-container">
+          <h1>{landingPageSettings.title}</h1>
+          <div className={`transition-container ${isTransitioning ? 'fade-out' : 'fade-in'}`}>
+            {isSubmitted ? (
+              <div className="thank-you-message">
+                <h2>Terima kasih sudah berhadir di acara maulid SMAN Modal Bangsa!</h2>
+                <p>Kami menantikan kehadiran Anda.</p>
+              </div>
+            ) : (
+              <RSVPForm onSubmit={handleRSVPSubmit} />
+            )}
+          </div>
         </div>
       </div>
-    </Parallax>
+    </div>
   );
 };
 

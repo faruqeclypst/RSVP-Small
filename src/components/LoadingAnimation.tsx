@@ -1,11 +1,24 @@
 import React from 'react';
-import { Circles } from 'react-loader-spinner';
+import { CircularProgress, Box } from '@mui/material';
 
 const LoadingAnimation: React.FC = () => {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-      <Circles color="#00BFFF" height={80} width={80} />
-    </div>
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+      }}
+    >
+      <CircularProgress size={80} thickness={4} />
+    </Box>
   );
 };
 

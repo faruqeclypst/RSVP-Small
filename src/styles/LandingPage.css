@@ -1,0 +1,89 @@
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.background-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
+
+.content-wrapper {
+  width: 100%;
+  max-width: 500px;
+  padding: 20px;
+}
+
+.form-container {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  font-size: 2rem;
+  color: #333;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.transition-container {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.fade-in {
+  opacity: 1;
+}
+
+.fade-out {
+  opacity: 0;
+}
+
+.thank-you-message {
+  text-align: center;
+  padding: 20px;
+}
+
+.thank-you-message h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.thank-you-message p {
+  font-size: 1rem;
+  color: #666;
+}
+
+@media (max-width: 600px) {
+  .content-wrapper {
+    padding: 10px;
+  }
+
+  .form-container {
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  .thank-you-message h2 {
+    font-size: 1.2rem;
+  }
+
+  .thank-you-message p {
+    font-size: 0.9rem;
+  }
+}

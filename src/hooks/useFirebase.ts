@@ -1,37 +1,45 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ref, push, onValue, set, off, remove } from 'firebase/database';
-import { database } from '../firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { database, storage } from '../firebase';
 import { RSVP, LandingPageSettings } from '../types';
 
 export const useFirebase = () => {
   const [rsvps, setRSVPs] = useState<RSVP[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [landingPageSettings, setLandingPageSettings] = useState<LandingPageSettings | null>(null);
 
   useEffect(() => {
     const rsvpsRef = ref(database, 'rsvps');
-    setLoading(true);
+    const settingsRef = ref(database, 'settings/landingPage');
     
-    const handleData = (snapshot: any) => {
+    setLoading(true);
+
+    const handleRSVPData = (snapshot: any) => {
       const data = snapshot.val();
       const rsvpList: RSVP[] = [];
       for (let id in data) {
         rsvpList.push({ id, ...data[id] });
       }
       setRSVPs(rsvpList);
-      setLoading(false);
     };
 
-    const handleError = (err: Error) => {
-      setError('Failed to fetch RSVPs');
-      setLoading(false);
-      console.error('Error fetching RSVPs:', err);
+    const handleSettingsData = (snapshot: any) => {
+      const data = snapshot.val();
+      if (data) {
+        setLandingPageSettings(data);
+      }
     };
 
-    onValue(rsvpsRef, handleData, handleError);
+    onValue(rsvpsRef, handleRSVPData);
+    onValue(settingsRef, handleSettingsData);
+
+    setLoading(false);
 
     return () => {
       off(rsvpsRef);
+      off(settingsRef);
     };
   }, []);
 
@@ -77,17 +85,30 @@ export const useFirebase = () => {
     }
   }, []);
 
-  const getLandingPageSettings = useCallback(async (): Promise<LandingPageSettings | null> => {
+  const uploadFile = useCallback(async (file: File) => {
     setLoading(true);
     setError(null);
     try {
-      const settingsRef = ref(database, 'settings/landingPage');
-      const snapshot = await new Promise<any>((resolve, reject) => {
-        onValue(settingsRef, resolve, reject, { onlyOnce: true });
-      });
-      return snapshot.val();
+      const fileRef = storageRef(storage, `backgrounds/${file.name}`);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      return url;
     } catch (err) {
-      setError('Failed to fetch landing page settings');
+      setError('Failed to upload file');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const deleteAllRSVPs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rsvpsRef = ref(database, 'rsvps');
+      await remove(rsvpsRef);
+    } catch (err) {
+      setError('Failed to delete all RSVPs');
       throw err;
     } finally {
       setLoading(false);
@@ -98,8 +119,10 @@ export const useFirebase = () => {
     rsvps,
     addRSVP,
     deleteRSVP,
+    deleteAllRSVPs,
     updateLandingPage,
-    getLandingPageSettings,
+    landingPageSettings,
+    uploadFile,
     loading,
     error
   };
