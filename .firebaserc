@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "webtestmosa"
+  },
+  "targets": {
+    "webtestmosa": {
+      "hosting": {
+        "default": [
+          "project-faruq"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
